@@ -3,6 +3,7 @@ backend/node_modules/
 backend/dist/
 backend/.env
 backend/.env.local
+.env
 
 # Flutter - generated files only
 mobile/.dart_tool/
@@ -29,6 +30,5 @@ windows/
 analysis_options.yaml
 test/
 rentra.iml
-README.md
 web/
 .metadata
