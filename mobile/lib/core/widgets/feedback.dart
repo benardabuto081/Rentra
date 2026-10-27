@@ -24,6 +24,7 @@ Future<T?> showAppBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
 }) {
+  ScaffoldMessenger.of(context).hideCurrentSnackBar();
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
@@ -75,4 +76,21 @@ Future<bool> showConfirmDialog({
     ),
   );
   return result ?? false;
+}
+
+/// For quick actions that fail outside a form. [message] must be human copy.
+void showErrorSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.surface),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      ),
+    );
 }

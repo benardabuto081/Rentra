@@ -62,7 +62,34 @@ There is no way to invite or assign a caretaker. Since Phase 1b, "I manage prope
 - No `GET /me` to check a restored session. A stale token is caught at its first 401, which ends the session as designed.
 
 ### OQ-10. Tenancy records have no tenant name or phone
-`GET /organizations/:id/tenants` returns `userId` only, and no endpoint reads another user. In Phase 3, landlord lists can show the unit and the rent, but not the tenant's name.
+`GET /organizations/:id/tenants` returns `userId` only, and no endpoint reads another user.
+- **Phase 3:** tenants, payments and issues are labelled by unit and building ("A1 · Kamau Court") through a portfolio index built on the phone. The tenant's name and phone are never shown.
+- **Recommendation:** have the tenants endpoint include the tenant's first name, last name and phone.
+
+### OQ-10a. The portfolio index costs one request per building
+Turning ids into "A1 · Kamau Court" needs the buildings list plus each building's units, so N+1 requests. That's fine for a few buildings but slow for large portfolios on a weak connection. A single endpoint returning units with their building names (or names embedded in tenants, payments and issues) would remove this.
+
+### OQ-10b. Marking a unit vacant does not end its tenancy
+`PATCH .../rooms/:id/vacate` only changes the room. An active tenancy on that room stays active. So in the app:
+- An occupied unit with a tenancy shows "To move this tenant out, open their tenancy". Move-out goes through `PATCH .../tenants/:id/vacate`, which ends the tenancy and also frees the room.
+- "Mark as vacant" (with confirmation) is offered only for units with no tenancy, such as one under repair.
+
+Should the backend refuse to vacate a room that still has an active tenancy?
+
+### OQ-10c. Deactivating a building leaves its tenancies active
+`DELETE .../buildings/:id` only sets the building inactive. Its units and any active tenancies are untouched, so a tenant can be "active" in a building that no longer appears in My Properties. The confirmation says records are kept. Should the backend block this while tenants are active?
+
+### OQ-10d. Issues can only come from outside the app
+Landlords can assign, prioritise, resolve and cancel issues, but nobody can create one in the app. Tenant "Report an Issue" needs tenant-scoped endpoints (OQ-7) and is out of scope. Until then, Operations stays empty unless issues are created through the API directly.
+
+### OQ-10e. "Assigned to" is free text
+`PATCH .../maintenance/:id/assign` takes `assignedTo` as any string, and there are no caretaker accounts to choose from (OQ-8). The app asks "Who is handling this?" and stores the name typed, such as "Juma the plumber". If this field is meant to hold a user id, it needs to change when caretakers arrive.
+
+### OQ-10f. Passkeys can be created but not yet used
+The landlord side works: choose 7, 14 or 30 days and get a code with a copy button and an expiry date. A tenant still cannot redeem it, because the preview endpoint is missing (OQ-3). The invite screen states what the passkey is for without promising it works end to end.
+
+### OQ-10g. Caretakers use the landlord app
+Caretaker screens are out of scope, so a caretaker who signs in sees the landlord tabs. The server rejects their write actions with 403, and the app shows "Your account doesn't have access to this…". There is no way to hide those actions for caretakers until the caretaker experience is designed.
 
 ### OQ-11. Email OTP is not enforced by the register endpoints
 `register` and `register-tenant` do not check that an OTP was verified. The app keeps the verify step in the flow, but the server does not require it.
@@ -121,3 +148,20 @@ There was no answer, so I took the no-new-dependency option. `AppConfig.appVersi
 - **Household and Activity:** both are calm empty states with no buttons. The copy changed so it no longer implies something is missing.
 - **Account:** read-only profile, email, phone, role, app version and sign out.
 - **Role-based tabs:** landlords and caretakers still see the Phase 1 landlord Home and Payments in the same five tabs until Phase 3.
+
+## Copy and behaviour changes made in Phase 3
+- **Separate tab bars by role:**
+  - Landlords now have their own tabs (Dashboard, Properties, Payments, Operations, Account) under `/landlord/...`.
+  - Tenants keep Home, Payments, Household, Activity, Account.
+  - The router moves anyone who reaches the other role's area back to their own home.
+- **Role label:** landlords now see "Landlord" instead of "Property Owner", because property managers register as landlords too.
+- **Dashboard:**
+  - A list under "What needs my attention today?" covers open issues, money still to collect, tenants on notice and vacant units. When the list is empty it says "Nothing needs your attention today. Everything is up to date."
+  - "Outstanding (all months)" comes from the backend's arrears total, which is not limited to the current month.
+- **Record a payment:**
+  - The year can be last year, this year or next year, to allow advance payments.
+  - Amount paid can be 0, which records the payment as not paid.
+  - The M-Pesa code field appears only when the method is M-Pesa. It is upper-cased as you type and must be exactly 10 letters and digits when present.
+- **Settling a payment:** "Update amount paid" asks for the total paid so far and offers the full amount by default. The app never subtracts amounts; the server works out the status.
+- **Several units:** names are a prefix plus a running number (default "A" from 1). Units are created one after another. If one fails, the app reports how many were added and offers to add the rest.
+- **Sheets and snackbars:** opening a bottom sheet now hides any success message still showing, so it cannot cover the sheet's button.

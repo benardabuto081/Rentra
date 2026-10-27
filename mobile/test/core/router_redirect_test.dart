@@ -2,30 +2,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rentra/core/router/app_router.dart';
 import 'package:rentra/core/router/app_routes.dart';
-import 'package:rentra/features/auth/data/session_store.dart';
 import 'package:rentra/features/auth/models/app_user.dart';
 import 'package:rentra/features/auth/models/session.dart';
 import 'package:rentra/features/auth/providers/session_providers.dart';
 
-class _MemoryStore implements SessionStore {
-  _MemoryStore([this.session]);
-
-  Session? session;
-
-  @override
-  Future<Session?> read() async => session;
-
-  @override
-  Future<void> save(Session s) async => session = s;
-
-  @override
-  Future<void> clear() async => session = null;
-}
+import '../helpers/memory_fakes.dart';
 
 const _tenant = Session(
   token: 't',
   user: AppUser(id: 'u', role: UserRole.tenant),
 );
+
+String? _signedIn(String location, UserRole role) => resolveRedirect(
+      location: location,
+      status: AuthStatus.signedIn,
+      role: role,
+    );
 
 void main() {
   group('resolveRedirect', () {
@@ -58,6 +50,8 @@ void main() {
         AppRoutes.tenantSetup,
         AppRoutes.ownerSetup,
         AppRoutes.tour,
+        AppRoutes.landlordDashboard,
+        AppRoutes.newBuilding,
       ]) {
         expect(
           resolveRedirect(location: route, status: AuthStatus.signedOut),
@@ -67,38 +61,79 @@ void main() {
       }
     });
 
-    test('signed in people skip the signed-out screens', () {
+    test('signed in people skip the signed-out screens to their own home', () {
       for (final route in AppRoutes.signedOutOnly) {
+        expect(_signedIn(route, UserRole.tenant), AppRoutes.home, reason: route);
         expect(
-          resolveRedirect(location: route, status: AuthStatus.signedIn),
-          AppRoutes.home,
+          _signedIn(route, UserRole.landlord),
+          AppRoutes.landlordDashboard,
           reason: route,
         );
       }
     });
 
-    test('signed in people can finish onboarding and use the app', () {
+    test('everyone can finish onboarding', () {
+      for (final role in UserRole.values) {
+        for (final route in [
+          AppRoutes.privacy,
+          AppRoutes.role,
+          AppRoutes.tenantSetup,
+          AppRoutes.ownerSetup,
+          AppRoutes.tour,
+        ]) {
+          expect(_signedIn(route, role), isNull, reason: '$role $route');
+        }
+      }
+    });
+
+    test('tenants stay in the tenant area', () {
       for (final route in [
-        AppRoutes.privacy,
-        AppRoutes.role,
-        AppRoutes.tenantSetup,
-        AppRoutes.ownerSetup,
-        AppRoutes.tour,
         AppRoutes.home,
         AppRoutes.payments,
         AppRoutes.account,
+        AppRoutes.rentalEdit,
       ]) {
-        expect(
-          resolveRedirect(location: route, status: AuthStatus.signedIn),
-          isNull,
-          reason: route,
-        );
+        expect(_signedIn(route, UserRole.tenant), isNull, reason: route);
+      }
+      for (final route in [
+        AppRoutes.landlordDashboard,
+        AppRoutes.landlordPayments,
+        AppRoutes.building('b1'),
+        AppRoutes.newBuilding,
+        AppRoutes.recordPayment(),
+      ]) {
+        expect(_signedIn(route, UserRole.tenant), AppRoutes.home, reason: route);
+      }
+    });
+
+    test('landlords and caretakers stay in the landlord area', () {
+      for (final role in [UserRole.landlord, UserRole.caretaker]) {
+        for (final route in [
+          AppRoutes.landlordDashboard,
+          AppRoutes.unit('b1', 'u1'),
+          AppRoutes.editPortfolio,
+          AppRoutes.issue('i1'),
+        ]) {
+          expect(_signedIn(route, role), isNull, reason: route);
+        }
+        for (final route in [
+          AppRoutes.home,
+          AppRoutes.payments,
+          AppRoutes.account,
+          AppRoutes.rentalSetup,
+        ]) {
+          expect(
+            _signedIn(route, role),
+            AppRoutes.landlordDashboard,
+            reason: route,
+          );
+        }
       }
     });
   });
 
   group('authStatusProvider', () {
-    ProviderContainer container(SessionStore store) {
+    ProviderContainer container(MemorySessionStore store) {
       final c = ProviderContainer(
         overrides: [
           sessionStoreProvider.overrideWithValue(store),
@@ -111,30 +146,33 @@ void main() {
     }
 
     test('is loading until the session is restored', () async {
-      final c = container(_MemoryStore());
-      expect(c.read(authStatusProvider), AuthStatus.loading);
+      final c = container(MemorySessionStore());
+      expect(c.read(authStatusProvider).status, AuthStatus.loading);
       await c.read(sessionControllerProvider.future);
       await c.read(splashGateProvider.future);
-      expect(c.read(authStatusProvider), AuthStatus.signedOut);
+      expect(c.read(authStatusProvider).status, AuthStatus.signedOut);
     });
 
-    test('restores a saved session as signed in', () async {
-      final c = container(_MemoryStore(_tenant));
+    test('restores a saved session as signed in with its role', () async {
+      final c = container(MemorySessionStore(_tenant));
       c.listen(authStatusProvider, (_, __) {});
       await c.read(sessionControllerProvider.future);
       await c.read(splashGateProvider.future);
-      expect(c.read(authStatusProvider), AuthStatus.signedIn);
+      expect(
+        c.read(authStatusProvider),
+        (status: AuthStatus.signedIn, role: UserRole.tenant),
+      );
     });
 
     test('expire signs out and leaves a notice for Welcome', () async {
-      final store = _MemoryStore(_tenant);
+      final store = MemorySessionStore(_tenant);
       final c = container(store);
       await c.read(sessionControllerProvider.future);
       await c.read(splashGateProvider.future);
 
       await c.read(sessionControllerProvider.notifier).expire();
 
-      expect(c.read(authStatusProvider), AuthStatus.signedOut);
+      expect(c.read(authStatusProvider).status, AuthStatus.signedOut);
       expect(store.session, isNull);
       expect(
         c.read(sessionNoticeProvider),
@@ -143,7 +181,7 @@ void main() {
     });
 
     test('expire does nothing when already signed out', () async {
-      final c = container(_MemoryStore());
+      final c = container(MemorySessionStore());
       await c.read(sessionControllerProvider.future);
       await c.read(sessionControllerProvider.notifier).expire();
       expect(c.read(sessionNoticeProvider), isNull);

@@ -415,3 +415,41 @@ class _Labelled extends StatelessWidget {
     );
   }
 }
+
+/// Amount in Kenya shillings. Accepts digits, one decimal point and commas.
+class MoneyField extends StatelessWidget {
+  const MoneyField({
+    super.key,
+    required this.label,
+    required this.controller,
+    this.validator = Validators.amount,
+    this.helper,
+    this.onChanged,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String? Function(String?)? validator;
+  final String? helper;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppTextField(
+      label: label,
+      controller: controller,
+      prefixText: 'KES ',
+      hint: '0',
+      helper: helper,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[0-9.,]'))],
+      validator: validator,
+      onChanged: onChanged,
+    );
+  }
+}
+
+/// Plain text for an amount, as a person would type it: `7000` or `7000.50`.
+String editableAmount(num amount) => amount == amount.truncateToDouble()
+    ? amount.toStringAsFixed(0)
+    : amount.toStringAsFixed(2);

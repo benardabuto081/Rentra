@@ -12,12 +12,13 @@ import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../auth/models/app_user.dart';
 import '../../auth/providers/session_providers.dart';
+import '../widgets/portfolio_section.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
 
   static String roleLabel(UserRole role) => switch (role) {
-        UserRole.landlord => 'Property Owner',
+        UserRole.landlord => 'Landlord',
         UserRole.tenant => 'Tenant',
         UserRole.caretaker => 'Caretaker',
       };
@@ -86,6 +87,10 @@ class AccountScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (user.role == UserRole.landlord) ...[
+            const SizedBox(height: AppSpacing.md),
+            const PortfolioSection(),
+          ],
           const SizedBox(height: AppSpacing.md),
           AppCard(
             padding: const EdgeInsets.all(AppSpacing.md),

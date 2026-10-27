@@ -214,6 +214,7 @@ class SkeletonList extends StatelessWidget {
       label: 'Loading',
       child: ListView.separated(
         padding: const EdgeInsets.all(AppSpacing.sm),
+        shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: itemCount,
         separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
