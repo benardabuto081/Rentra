@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/storage/secure_storage.dart';
+import '../../landlord/models/organization.dart';
 import '../data/session_store.dart';
 import '../models/app_user.dart';
 import '../models/session.dart';
@@ -22,6 +23,19 @@ class SessionController extends AsyncNotifier<Session?> {
     await ref.read(sessionStoreProvider).save(session);
     ref.read(sessionNoticeProvider.notifier).clear();
     state = AsyncData(session);
+  }
+
+  /// Replaces the saved portfolio, keeping the rest of the session.
+  Future<void> updateOrganization(Organization organization) async {
+    final current = state.value;
+    if (current == null) return;
+    await establish(
+      Session(
+        token: current.token,
+        user: current.user,
+        organization: organization,
+      ),
+    );
   }
 
   Future<void> signOut() async {

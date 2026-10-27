@@ -7,15 +7,15 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/buttons.dart';
+import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/states.dart';
 import '../../../core/widgets/text_fields.dart';
-import '../../auth/providers/auth_providers.dart';
 import '../../auth/providers/session_providers.dart';
-import '../providers/onboarding_draft.dart';
+import '../../landlord/providers/landlord_providers.dart';
 import '../widgets/onboarding_widgets.dart';
 
-/// Ported as-is: the name, city and phone entered here are not sent yet.
-/// See docs/open-questions.md.
+/// Saves the business details onto the portfolio created at registration.
+/// A failure never blocks onboarding.
 class OwnerSetupScreen extends ConsumerStatefulWidget {
   const OwnerSetupScreen({super.key});
 
@@ -24,12 +24,16 @@ class OwnerSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
+  static const _saveFailed =
+      "We couldn't save your business details right now. You can try again, "
+      'or continue and add them later from your account.';
+
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _city = TextEditingController();
   final _phone = TextEditingController();
   bool _loading = false;
-  String? _error;
+  bool _failed = false;
 
   @override
   void dispose() {
@@ -39,29 +43,34 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
     super.dispose();
   }
 
+  void _continue() => context.go(AppRoutes.tour);
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final draft = ref.read(onboardingDraftProvider);
-    if (draft == null) {
-      setState(() => _error = 'Session expired. Please start again.');
-      return;
-    }
+    final session = ref.read(sessionControllerProvider).value;
+    final orgId = session?.organization?.id ?? session?.user.organizationId;
     setState(() {
       _loading = true;
-      _error = null;
+      _failed = false;
     });
+    String? optional(TextEditingController c) =>
+        c.text.trim().isEmpty ? null : c.text.trim();
     try {
-      final session = await ref.read(authRepositoryProvider).registerLandlord(
-            firstName: draft.firstName,
-            lastName: draft.lastName,
-            email: draft.email,
-            password: draft.password,
+      if (orgId == null) throw const NotFoundException();
+      final organization = await ref.read(organizationRepositoryProvider).update(
+            orgId,
+            name: _name.text.trim(),
+            city: optional(_city),
+            phone: optional(_phone),
           );
-      await ref.read(sessionControllerProvider.notifier).establish(session);
-      ref.read(onboardingDraftProvider.notifier).clear();
-      if (mounted) context.go(AppRoutes.tour);
-    } on AppException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      await ref
+          .read(sessionControllerProvider.notifier)
+          .updateOrganization(organization);
+      if (!mounted) return;
+      showSuccessSnackBar(context, 'Your portfolio is set up.');
+      _continue();
+    } on AppException {
+      if (mounted) setState(() => _failed = true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -83,8 +92,8 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
                 subtitle: 'You can add your buildings and units after setup.',
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (_error != null) ...[
-                InlineMessage(message: _error!),
+              if (_failed) ...[
+                const InlineMessage(message: _saveFailed, tone: InlineTone.info),
                 const SizedBox(height: AppSpacing.sm),
               ],
               AppTextField(
@@ -113,10 +122,18 @@ class _OwnerSetupScreenState extends ConsumerState<OwnerSetupScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               PrimaryButton(
-                label: 'Complete Setup',
+                label: _failed ? 'Continue' : 'Complete Setup',
                 isLoading: _loading,
-                onPressed: _submit,
+                onPressed: _failed ? _continue : _submit,
               ),
+              if (_failed) ...[
+                const SizedBox(height: AppSpacing.sm),
+                SecondaryButton(
+                  label: 'Try again',
+                  isLoading: _loading,
+                  onPressed: _submit,
+                ),
+              ],
             ],
           ),
         ),

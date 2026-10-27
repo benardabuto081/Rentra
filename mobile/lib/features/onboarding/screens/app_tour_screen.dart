@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
@@ -8,7 +7,6 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/buttons.dart';
 import '../../../core/widgets/display.dart';
-import '../providers/onboarding_draft.dart';
 
 class _TourPage {
   const _TourPage(this.icon, this.title, this.subtitle, this.description);
@@ -52,14 +50,14 @@ const _pages = [
   ),
 ];
 
-class AppTourScreen extends ConsumerStatefulWidget {
+class AppTourScreen extends StatefulWidget {
   const AppTourScreen({super.key});
 
   @override
-  ConsumerState<AppTourScreen> createState() => _AppTourScreenState();
+  State<AppTourScreen> createState() => _AppTourScreenState();
 }
 
-class _AppTourScreenState extends ConsumerState<AppTourScreen> {
+class _AppTourScreenState extends State<AppTourScreen> {
   final _controller = PageController();
   int _page = 0;
 
@@ -80,7 +78,6 @@ class _AppTourScreenState extends ConsumerState<AppTourScreen> {
   }
 
   void _finish() {
-    ref.read(onboardingDraftProvider.notifier).clear();
     context.go(AppRoutes.home);
   }
 

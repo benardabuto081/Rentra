@@ -2,16 +2,26 @@
 
 Items found while building. Nothing here has been worked around in code. Each entry gives what was found and where, and, when a decision is needed, a recommendation.
 
-## Needs a decision before Phase 3
+## Resolved
 
-### OQ-1. Landlord sign-up fails in the current flow (blocking)
-- **Found:** `PrivacyConsentScreen` registers every new person as a tenant through `POST /auth/register-tenant`, sending their email. If they then choose "I own property", `OwnerSetupScreen` calls `POST /auth/register` with the same email. The backend `registerLandlord` throws `400 Email already registered` (`backend/src/auth/auth.service.ts`). A new landlord cannot finish onboarding.
-- **Phase 1:** ported exactly as found. The person now sees the server reason ("Email already registered") instead of a generic error.
-- **Recommendation:** create the account at the role step instead of at Privacy Consent. Privacy Consent only records consent. "I rent" calls register-tenant. "I own property" calls register (landlord), which already creates the portfolio. The screen order stays the same. The open question is what "I manage properties" and "Skip for now" should create, because caretakers cannot self-register (see OQ-8).
+### OQ-1. Landlord sign-up failed in the old flow (resolved in Phase 1b)
+- **Was:** Privacy Consent registered everyone as a tenant, so the later landlord registration hit `400 Email already registered`.
+- **Decision:** the account is now created when the person confirms their role. The screen order is unchanged.
+  - Create Account holds the details in memory only (`onboardingDraftProvider`). They are cleared after registration, when the person leaves Create Account, and on sign-out.
+  - Privacy Consent no longer calls the backend.
+  - "I rent a property" calls `/auth/register-tenant`. "I own property" and "I manage properties" both call `/auth/register`. There is no caretaker sign-up.
+  - If an email or phone is already registered, the person stays on the role screen with their choice kept and gets a Sign In action.
+  - After registering, the app replaces the navigation stack with setup, so going back cannot reach the role screen again. If a session already exists, `Registration.register` returns it instead of calling the backend.
+- **Consequence:** if the app is closed before the role is confirmed, no account exists and onboarding starts again from Welcome.
+- **Removed:** the role screen's "Skip for now". Skipping would leave the person with no account, and an account needs a role.
 
-### OQ-2. Owner setup collects details it never sends
-- **Found:** `OwnerSetupScreen` asks for a business name, city and phone, but sends none of them. The backend names the portfolio `"<FirstName>'s Organization"`.
-- **Recommendation:** after a successful register, call `PATCH /organizations/:id` with these fields. The endpoint exists and is landlord-only.
+### OQ-1a. `POST /auth/register` does not accept a phone number
+The landlord registration body is `{firstName, lastName, email, password}` only. The phone collected on Create Account is not stored for landlords. The business phone from Owner Setup goes onto the portfolio (OQ-2), not the user. Landlords sign in by email, so this does not block sign-in. It does mean a landlord's own phone is never recorded.
+
+### OQ-2. Owner setup discarded its input (resolved in Phase 1b)
+- **Now:** Owner Setup sends `name`, `city` and `phone` with `PATCH /organizations/:id`, using the portfolio id returned by `/auth/register`, and stores the updated portfolio in the session.
+- **On failure:** a calm message appears, with "Continue" and "Try again". Onboarding is never blocked.
+- **Phase 3:** the same fields will be editable from landlord Account, as the brief already plans.
 
 ## Backend gaps (not worked around)
 
@@ -34,7 +44,7 @@ Anyone can generate a passkey for any unit. The app sends the Authorization head
 There is no endpoint for a managed tenant's own tenancy, payments or issues. Managed-tenant Home will show the "connected" state in Phase 2.
 
 ### OQ-8. No caretaker invitation or assignment
-"I manage properties" leads into the app with a tenant account, because Privacy Consent registered one. Caretaker accounts can only be created outside the app.
+There is no way to invite or assign a caretaker. Since Phase 1b, "I manage properties" creates a landlord, so caretaker accounts can only be created outside the app until invitations exist.
 
 ### OQ-9. Other missing features
 - Independent tenants cannot record payments.
@@ -54,12 +64,15 @@ There is no endpoint for a managed tenant's own tenancy, payments or issues. Man
 ### OQ-12. Root `.gitignore` hides `mobile/test/` and `mobile/analysis_options.yaml`
 The patterns `test/` and `analysis_options.yaml` in the root `.gitignore` also match files under `mobile/`. I can't edit `.gitignore`, so the commit commands use `git add -f` for these paths. Consider anchoring those patterns to the root (`/test/`, `/analysis_options.yaml`).
 
-### OQ-13. `mobile/` has no platform folders
-`mobile/` has no `android/`, `ios/` or `web/`, and `flutter create` is out of bounds, so no debug build was produced:
-- `flutter build apk --debug` failed with "No Android SDK found."
-- `flutter build web` failed with "This project is not configured for the web."
+### OQ-13. `mobile/` had no platform folders (resolved in Phase 1b; build still blocked)
+- **Done:** ran `flutter create . --platforms android` in `mobile/` as a one-time exception. `pubspec.yaml`, `lib/main.dart` and `analysis_options.yaml` are byte-identical before and after (md5 checked).
+- **Cleaned up:**
+  - Deleted the generated `test/widget_test.dart`, `README.md` and `mobile/.gitignore`. That last file would have changed the ignore rules, which you are handling.
+  - `.idea/`, `.metadata` and `rentra.iml` were also generated; the root `.gitignore` already ignores them.
+- **Still blocked:** this machine has no Android SDK. `flutter doctor -v` reports "Unable to locate Android SDK", and `flutter build apk --debug` fails with "No Android SDK found." Per instructions, I did not install anything.
 
-How should Build A be run on a device? One option is to allow `flutter create . --platforms android` in `mobile/` (it keeps the existing package name `rentra`).
+### OQ-13a. Default application id
+`android/app/build.gradle.kts` has `namespace` and `applicationId` set to `com.example.rentra`. These must be changed to the real id before any store release, and changing the id later means a different app on the Play Store.
 
 ### OQ-14. Web URL strategy dropped
 The old `main.dart` called `setUrlStrategy(PathUrlStrategy())` from `flutter_web_plugins`, which was never declared in `pubspec.yaml`. I removed the call rather than add a dependency, so web builds now use `#/` URLs. Android is unaffected.
@@ -77,6 +90,12 @@ Showing the app version without a new dependency (such as `package_info_plus`) m
 - **Resend code:** the old screen showed "Code resent successfully" even when sending failed. It now shows the real error.
 - **Dead buttons removed** from the ported shell: tenant Home quick actions with no action, the Household "Create Household" and "Join with Passkey" buttons, and the Account menu items with empty handlers. These come back properly in Phases 2 and 3.
 - **Sign out** now asks for confirmation.
+
+## Copy and behaviour changes made in Phase 1b
+- **Privacy Consent button:** "Create My Account" became "Continue", because it no longer creates the account.
+- **Role screen:** the cards are now a single choice, confirmed with a "Continue" button. Registration happens on that button.
+- **"I manage properties" subtitle:** "I was invited to manage properties on behalf of an owner." described caretakers. It is now "Manage buildings, units and tenants on behalf of owners.", because this path creates a landlord.
+- **Owner Setup success:** now ends with "Your portfolio is set up."
 - **Linking with no rent:** if a passkey preview ever returns no rent amount, linking is refused. The old code sent `rentAmount: 0`.
 - **Unused screen deleted:** `verify_phone_screen.dart` was never navigated to.
 - **Lints version:** `flutter pub add` tried to bump `flutter_lints` to ^6. I kept the existing ^3.0.0.

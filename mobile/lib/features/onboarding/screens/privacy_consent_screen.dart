@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/errors/app_exception.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/buttons.dart';
 import '../../../core/widgets/display.dart';
 import '../../../core/widgets/states.dart';
-import '../../auth/providers/auth_providers.dart';
-import '../../auth/providers/session_providers.dart';
 import '../providers/onboarding_draft.dart';
 import '../widgets/onboarding_widgets.dart';
 
@@ -25,38 +22,19 @@ class PrivacyConsentScreen extends ConsumerStatefulWidget {
 class _PrivacyConsentScreenState extends ConsumerState<PrivacyConsentScreen> {
   bool _agreedToTerms = false;
   bool _agreedToData = false;
-  bool _loading = false;
   String? _error;
 
-  Future<void> _continue() async {
+  void _continue() {
     if (!_agreedToTerms || !_agreedToData) {
       setState(() => _error = 'Please agree to both terms to continue.');
       return;
     }
-    final draft = ref.read(onboardingDraftProvider);
-    if (draft == null) {
+    if (ref.read(onboardingDraftProvider) == null) {
       setState(() => _error = 'Registration data lost. Please start again.');
       return;
     }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final session = await ref.read(authRepositoryProvider).registerTenant(
-            firstName: draft.firstName,
-            lastName: draft.lastName,
-            phone: draft.phone,
-            email: draft.email,
-            password: draft.password,
-          );
-      await ref.read(sessionControllerProvider.notifier).establish(session);
-      if (mounted) context.go(AppRoutes.role);
-    } on AppException catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    setState(() => _error = null);
+    context.push(AppRoutes.role);
   }
 
   @override
@@ -105,8 +83,7 @@ class _PrivacyConsentScreenState extends ConsumerState<PrivacyConsentScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             PrimaryButton(
-              label: 'Create My Account',
-              isLoading: _loading,
+              label: 'Continue',
               onPressed: _continue,
             ),
           ],

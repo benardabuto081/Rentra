@@ -24,10 +24,11 @@ class AppRoutes {
     createAccount,
     verifyEmail,
     privacy,
+    role,
   };
 
-  /// Leave these once signed in. Privacy is excluded because it creates the
-  /// session and then moves on by itself.
+  /// Leave these once signed in. Role is excluded because it creates the
+  /// session and then moves on to setup by itself.
   static const signedOutOnly = {splash, welcome, login, createAccount, verifyEmail};
 }
 

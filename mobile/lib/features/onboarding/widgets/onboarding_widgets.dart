@@ -47,6 +47,7 @@ class ChoiceCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.selected,
   });
 
   final IconData icon;
@@ -54,9 +55,21 @@ class ChoiceCard extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
+  /// When set, the card behaves as one option in a single-choice group.
+  final bool? selected;
+
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    final isSelected = selected ?? false;
+    final trailing = switch (selected) {
+      null => const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+      true => const Icon(Icons.radio_button_checked, color: AppColors.primary),
+      false => const Icon(
+          Icons.radio_button_unchecked,
+          color: AppColors.textSecondary,
+        ),
+    };
+    final card = AppCard(
       onTap: onTap,
       semanticLabel: '$title. $subtitle',
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -76,9 +89,25 @@ class ChoiceCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            trailing,
           ],
         ),
+      ),
+    );
+    if (selected == null) return card;
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      selected: isSelected,
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: card,
       ),
     );
   }

@@ -55,7 +55,6 @@ void main() {
         AppRoutes.splash,
         AppRoutes.home,
         AppRoutes.account,
-        AppRoutes.role,
         AppRoutes.tenantSetup,
         AppRoutes.ownerSetup,
         AppRoutes.tour,
