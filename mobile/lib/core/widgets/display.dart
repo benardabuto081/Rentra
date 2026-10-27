@@ -1,0 +1,123 @@
+import 'package:flutter/material.dart';
+
+import '../theme/app_colors.dart';
+import '../theme/app_tokens.dart';
+import '../theme/app_typography.dart';
+import '../utils/money.dart';
+import 'app_card.dart';
+
+class MoneyText extends StatelessWidget {
+  const MoneyText(this.amount, {super.key, this.style});
+
+  final num amount;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = formatMoney(amount);
+    return Text(
+      text,
+      style: style ?? AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+      semanticsLabel: text.replaceFirst('KES', 'Kenya shillings'),
+    );
+  }
+}
+
+class SectionHeader extends StatelessWidget {
+  const SectionHeader({
+    super.key,
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(title, style: AppTypography.subheading),
+            ),
+          ),
+          if (actionLabel != null && onAction != null)
+            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+        ],
+      ),
+    );
+  }
+}
+
+class StatTile extends StatelessWidget {
+  const StatTile({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      semanticLabel: '$label: $value',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.primary),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              value,
+              style: AppTypography.heading,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(label, style: AppTypography.caption),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Rounded square holding a tinted icon, used as a leading visual.
+class IconBadge extends StatelessWidget {
+  const IconBadge({
+    super.key,
+    required this.icon,
+    this.color = AppColors.primary,
+    this.size = AppSizes.minTouchTarget,
+  });
+
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.tint(color),
+        borderRadius: BorderRadius.circular(AppRadii.button),
+      ),
+      child: Icon(icon, color: color, size: size / 2),
+    );
+  }
+}
