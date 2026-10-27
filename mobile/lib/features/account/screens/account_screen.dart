@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/buttons.dart';
+import '../../../core/widgets/display.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../auth/models/app_user.dart';
@@ -35,6 +37,11 @@ class AccountScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const SizedBox.shrink();
     final contact = user.email ?? user.phone;
+    final (version, build) = switch (AppConfig.appVersion.split('+')) {
+      [final v, final b] => (v, b),
+      [final v, ...] => (v, null),
+      _ => (AppConfig.appVersion, null),
+    };
     return Scaffold(
       appBar: AppBar(title: const Text('Account')),
       body: ListView(
@@ -75,6 +82,23 @@ class AccountScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              children: [
+                if (user.email != null)
+                  DetailRow(label: 'Email', value: user.email!),
+                if (user.phone != null)
+                  DetailRow(label: 'Phone', value: user.phone!),
+                DetailRow(label: 'Role', value: roleLabel(user.role)),
+                DetailRow(
+                  label: 'App version',
+                  value: build == null ? version : '$version (build $build)',
                 ),
               ],
             ),

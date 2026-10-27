@@ -10,6 +10,9 @@ import 'package:rentra/features/auth/models/app_user.dart';
 import 'package:rentra/features/auth/models/session.dart';
 import 'package:rentra/features/auth/providers/auth_providers.dart';
 import 'package:rentra/features/auth/providers/session_providers.dart';
+import 'package:rentra/features/tenant/providers/tenant_providers.dart';
+
+import 'helpers/memory_fakes.dart';
 
 class _MockAuth extends Mock implements AuthRepository {}
 
@@ -56,6 +59,7 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
           sessionStoreProvider.overrideWithValue(store),
+          shadowRentalRepositoryProvider.overrideWithValue(MemoryShadowRentals()),
           splashDurationProvider.overrideWithValue(Duration.zero),
         ],
         retry: (_, __) => null,

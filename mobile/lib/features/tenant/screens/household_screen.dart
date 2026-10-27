@@ -11,9 +11,9 @@ class HouseholdScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Household')),
       body: const EmptyState(
         icon: Icons.people_outline,
-        title: 'No household yet',
+        title: 'Households are coming soon',
         message:
-            'Households will let you share rental awareness with the people you live with.',
+            'You will be able to share your home with the people you live with, see contributions and stay in sync without chasing anyone. There is nothing you need to do for now.',
       ),
     );
   }

@@ -41,7 +41,15 @@ The landlord registration body is `{firstName, lastName, email, password}` only.
 Anyone can generate a passkey for any unit. The app sends the Authorization header anyway, as the brief asks. This needs fixing in the backend.
 
 ### OQ-7. No tenant-scoped endpoints
-There is no endpoint for a managed tenant's own tenancy, payments or issues. Managed-tenant Home will show the "connected" state in Phase 2.
+There is no endpoint for a managed tenant's own tenancy, payments or issues.
+- **Phase 2:** managed-tenant Home shows "You're connected to your landlord's property. Your rent and request details are on their way." Payments shows "Your rent details are on their way". Neither makes any request; a test enforces this.
+- **Needed from the backend:** a caller-scoped `GET` for the tenancy (unit, building name, rent, due day), the tenancy's payments, and its issues.
+
+### OQ-7a. Weekly rentals have no weekday
+Shadow rentals store `dueDayOfMonth` only. For a weekly cycle there is no weekday, so the app shows "You pay rent every week." and no next due date. I did not guess one from the creation date. If weekly rents should get a date, the backend needs a `dueDayOfWeek`.
+
+### OQ-7b. Shadow rentals have no list filter
+`GET /shadow-relationships` returns every rental, including ended and converted ones. The app treats the newest `unverified` rental as the current one. If a tenant could track more than one rental at a time, the product would need to say how Home should choose between them.
 
 ### OQ-8. No caretaker invitation or assignment
 There is no way to invite or assign a caretaker. Since Phase 1b, "I manage properties" creates a landlord, so caretaker accounts can only be created outside the app until invitations exist.
@@ -80,8 +88,8 @@ The old `main.dart` called `setUrlStrategy(PathUrlStrategy())` from `flutter_web
 ### OQ-15. Old sessions are not migrated
 Sessions saved in `shared_preferences` by the old app are not read. People sign in once more after updating. This was deliberate: tokens must not stay in plain storage.
 
-### OQ-16. App version for Account (Phase 2)
-Showing the app version without a new dependency (such as `package_info_plus`) means hard-coding a constant that mirrors `pubspec.yaml`. Which do you prefer?
+### OQ-16. App version for Account (Phase 2, decided by default)
+There was no answer, so I took the no-new-dependency option. `AppConfig.appVersion` mirrors `version` in `pubspec.yaml`, and `test/core/app_version_test.dart` fails if they drift. Account shows "1.0.0 (build 1)". If you prefer `package_info_plus`, say so and I'll swap it.
 
 ## Small copy and behaviour changes made in Phase 1 (confirm or revert)
 - **Username field removed:** the optional "Username" on Create Account was never sent and the backend has no such field.
@@ -100,3 +108,16 @@ Showing the app version without a new dependency (such as `package_info_plus`) m
 - **Unused screen deleted:** `verify_phone_screen.dart` was never navigated to.
 - **Lints version:** `flutter pub add` tried to bump `flutter_lints` to ^6. I kept the existing ^3.0.0.
 - **Skeleton timing:** the skeleton pulse runs on a 900 ms loop, outside the 150–250 ms transition range. It is a loading loop, not a transition.
+
+## Copy and behaviour changes made in Phase 2
+- **Tenant setup choices:** now read "My landlord gave me a passkey" and "My landlord isn’t on Rentra", as in the brief. "Skip for now" only appears during onboarding.
+- **Rental form:**
+  - Adds "How often do you pay?" (Monthly default, Weekly, Daily).
+  - The due day shows only for monthly rent and defaults to today's day, capped at the 28th.
+  - The rent label changed from "Monthly Rent" to "Rent amount".
+  - The reference field has helper text.
+  - Paybill, till and bank numbers accept digits only.
+- **Editing:** clearing the optional address or reference sends an empty string, so the old value is removed. A null would be ignored by the backend.
+- **Household and Activity:** both are calm empty states with no buttons. The copy changed so it no longer implies something is missing.
+- **Account:** read-only profile, email, phone, role, app version and sign out.
+- **Role-based tabs:** landlords and caretakers still see the Phase 1 landlord Home and Payments in the same five tabs until Phase 3.

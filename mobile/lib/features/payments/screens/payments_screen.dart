@@ -30,9 +30,9 @@ class PaymentsScreen extends ConsumerWidget {
           ? _OrganizationPayments(orgId: orgId!)
           : const EmptyState(
               icon: Icons.payments_outlined,
-              title: 'Payment tracking is on its way',
+              title: 'Payments will appear here',
               message:
-                  'Soon you will see every rent payment here, building a record you can rely on.',
+                  'Your account is not linked to a property portfolio yet, so there are no payments to show.',
             ),
     );
   }

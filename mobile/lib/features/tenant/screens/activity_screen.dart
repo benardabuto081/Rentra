@@ -11,9 +11,9 @@ class ActivityScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Activity')),
       body: const EmptyState(
         icon: Icons.notifications_none_outlined,
-        title: 'No activity yet',
+        title: 'Nothing new yet',
         message:
-            'Your activity timeline will appear here — payments, maintenance updates, household activity, and more.',
+            'Updates about your rent and your home will gather here, so nothing important slips past you. There is nothing you need to do for now.',
       ),
     );
   }

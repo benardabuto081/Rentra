@@ -16,9 +16,13 @@ import '../../features/onboarding/screens/tenant_setup_screen.dart';
 import '../../features/onboarding/screens/verify_email_screen.dart';
 import '../../features/payments/screens/payments_screen.dart';
 import '../../features/tenant/screens/activity_screen.dart';
-import '../../features/tenant/screens/home_screen.dart';
+import '../../features/landlord/screens/landlord_home_screen.dart';
+import '../../features/tenant/screens/edit_rental_screen.dart';
+import '../../features/tenant/screens/tenant_home_screen.dart';
+import '../../features/tenant/screens/tenant_payments_screen.dart';
 import '../../features/tenant/screens/household_screen.dart';
 import 'main_shell.dart';
+import 'role_switch.dart';
 import 'app_routes.dart';
 
 final authStatusProvider = Provider<AuthStatus>((ref) {
@@ -82,11 +86,31 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tour,
         builder: (_, __) => const AppTourScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.rentalSetup,
+        builder: (_, __) => const TenantSetupScreen(fromOnboarding: false),
+      ),
+      GoRoute(
+        path: AppRoutes.rentalEdit,
+        builder: (_, __) => const EditRentalScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => MainShell(navigationShell: shell),
         branches: [
-          _branch(AppRoutes.home, const HomeScreen()),
-          _branch(AppRoutes.payments, const PaymentsScreen()),
+          _branch(
+            AppRoutes.home,
+            const RoleSwitch(
+              tenant: TenantHomeScreen(),
+              manager: LandlordHomeScreen(),
+            ),
+          ),
+          _branch(
+            AppRoutes.payments,
+            const RoleSwitch(
+              tenant: TenantPaymentsScreen(),
+              manager: PaymentsScreen(),
+            ),
+          ),
           _branch(AppRoutes.household, const HouseholdScreen()),
           _branch(AppRoutes.activity, const ActivityScreen()),
           _branch(AppRoutes.account, const AccountScreen()),

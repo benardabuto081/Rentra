@@ -11,6 +11,8 @@ class AppRoutes {
   static const tenantSetup = '/setup/tenant';
   static const ownerSetup = '/setup/owner';
   static const tour = '/tour';
+  static const rentalSetup = '/rental/setup';
+  static const rentalEdit = '/rental/edit';
   static const home = '/home';
   static const payments = '/payments';
   static const household = '/household';

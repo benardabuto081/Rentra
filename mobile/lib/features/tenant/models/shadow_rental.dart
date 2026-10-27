@@ -81,5 +81,16 @@ class ShadowRental {
         createdAt: optionalDate(json, 'createdAt'),
       );
 
-  bool get isActive => status != ShadowRentalStatus.ended;
+  /// Still tracked by the tenant: not ended and not converted to a managed
+  /// tenancy.
+  bool get isActive => status == ShadowRentalStatus.unverified;
+
+  String get displayName => _present(nickname) ?? 'My rental';
+
+  String? get displayAddress => _present(address);
+
+  String? get displayReference => _present(referenceName);
+
+  static String? _present(String? value) =>
+      value == null || value.trim().isEmpty ? null : value.trim();
 }

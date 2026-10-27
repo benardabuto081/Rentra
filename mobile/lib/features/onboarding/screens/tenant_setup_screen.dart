@@ -8,22 +8,26 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/money.dart';
-import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/buttons.dart';
+import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/states.dart';
 import '../../../core/widgets/text_fields.dart';
 import '../../auth/models/passkey_preview.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../auth/providers/session_providers.dart';
-import '../../tenant/models/shadow_rental.dart';
 import '../../tenant/providers/tenant_providers.dart';
+import '../../tenant/widgets/shadow_rental_form.dart';
 import '../widgets/onboarding_widgets.dart';
 
 enum _Step { choice, passkey, shadow }
 
+/// Lets a tenant join their landlord with a passkey, or record the rental
+/// themselves. Used during onboarding and later from Home.
 class TenantSetupScreen extends ConsumerStatefulWidget {
-  const TenantSetupScreen({super.key});
+  const TenantSetupScreen({super.key, this.fromOnboarding = true});
+
+  final bool fromOnboarding;
 
   @override
   ConsumerState<TenantSetupScreen> createState() => _TenantSetupScreenState();
@@ -43,27 +47,9 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
   PasskeyPreview? _preview;
   bool _previewFailed = false;
 
-  final _shadowForm = GlobalKey<FormState>();
-  final _nickname = TextEditingController();
-  final _address = TextEditingController();
-  final _rent = TextEditingController();
-  final _destinationNumber = TextEditingController();
-  final _reference = TextEditingController();
-  PaymentDestinationType _destinationType = PaymentDestinationType.paybill;
-  int _dueDay = 1;
-
   @override
   void dispose() {
-    for (final c in [
-      _passkey,
-      _nickname,
-      _address,
-      _rent,
-      _destinationNumber,
-      _reference,
-    ]) {
-      c.dispose();
-    }
+    _passkey.dispose();
     super.dispose();
   }
 
@@ -74,7 +60,11 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
         _previewFailed = false;
       });
 
-  void _finish() => context.go(AppRoutes.tour);
+  void _finish(String confirmation) {
+    showSuccessSnackBar(context, confirmation);
+    ref.invalidate(activeShadowRentalProvider);
+    context.go(widget.fromOnboarding ? AppRoutes.tour : AppRoutes.home);
+  }
 
   static String? _validatePasskey(String? value) {
     final code = value?.trim().toUpperCase() ?? '';
@@ -91,7 +81,8 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
     });
     final code = _passkey.text.trim().toUpperCase();
     try {
-      final preview = await ref.read(authRepositoryProvider).previewPasskey(code);
+      final preview =
+          await ref.read(authRepositoryProvider).previewPasskey(code);
       if (mounted) setState(() => _preview = preview);
     } on AppException {
       if (mounted) {
@@ -122,7 +113,7 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
             moveInDate: DateTime.now(),
           );
       await ref.read(sessionControllerProvider.notifier).establish(session);
-      if (mounted) _finish();
+      if (mounted) _finish("You're connected to your landlord's property.");
     } on AppException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -130,26 +121,24 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
     }
   }
 
-  Future<void> _saveShadow() async {
-    if (!_shadowForm.currentState!.validate()) return;
+  Future<void> _saveShadow(ShadowRentalInput input) async {
     setState(() {
       _loading = true;
       _error = null;
     });
-    String? optional(TextEditingController c) =>
-        c.text.trim().isEmpty ? null : c.text.trim();
+    String? orNull(String value) => value.isEmpty ? null : value;
     try {
       await ref.read(shadowRentalRepositoryProvider).create(
-            nickname: _nickname.text.trim(),
-            address: optional(_address),
-            rentAmount: parseMoney(_rent.text.trim()),
-            billingCycle: BillingCycle.monthly,
-            dueDayOfMonth: _dueDay,
-            destinationType: _destinationType,
-            destinationNumber: _destinationNumber.text.trim(),
-            referenceName: optional(_reference),
+            nickname: input.nickname,
+            address: orNull(input.address),
+            rentAmount: input.rentAmount,
+            billingCycle: input.billingCycle,
+            dueDayOfMonth: input.dueDayOfMonth,
+            destinationType: input.destinationType,
+            destinationNumber: input.destinationNumber,
+            referenceName: orNull(input.referenceName),
           );
-      if (mounted) _finish();
+      if (mounted) _finish('Your rental is set up.');
     } on AppException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -172,7 +161,18 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
             child: switch (_step) {
               _Step.choice => _buildChoice(),
               _Step.passkey => _buildPasskey(),
-              _Step.shadow => _buildShadow(),
+              _Step.shadow => ShadowRentalForm(
+                  key: const ValueKey(_Step.shadow),
+                  header: const OnboardingHeader(
+                    title: 'Tell us about your rental',
+                    subtitle:
+                        'We will use this to remind you when rent is due and keep your payment details in one place.',
+                  ),
+                  submitLabel: 'Save My Rental',
+                  isSubmitting: _loading,
+                  error: _error,
+                  onSubmit: _saveShadow,
+                ),
             },
           ),
         ),
@@ -199,21 +199,26 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
         const SizedBox(height: AppSpacing.lg),
         ChoiceCard(
           icon: Icons.key_outlined,
-          title: 'My landlord is on Rentra',
-          subtitle: 'I have a passkey from my landlord.',
+          title: 'My landlord gave me a passkey',
+          subtitle: 'Join your landlord’s property on Rentra.',
           onTap: () => _goTo(_Step.passkey),
         ),
         const SizedBox(height: AppSpacing.sm),
         ChoiceCard(
           icon: Icons.edit_note,
-          title: 'My landlord is not on Rentra',
-          subtitle: 'I will enter my rent details manually.',
+          title: 'My landlord isn’t on Rentra',
+          subtitle: 'Add your rent and how you pay it yourself.',
           onTap: () => _goTo(_Step.shadow),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        Center(
-          child: AppTextButton(label: 'Skip for now', onPressed: _finish),
-        ),
+        if (widget.fromOnboarding) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Center(
+            child: AppTextButton(
+              label: 'Skip for now',
+              onPressed: () => context.go(AppRoutes.tour),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -304,102 +309,6 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
               }),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildShadow() {
-    final numberLabel = switch (_destinationType) {
-      PaymentDestinationType.paybill => 'Paybill Number',
-      PaymentDestinationType.till => 'Till Number',
-      PaymentDestinationType.bank => 'Account Number',
-    };
-    return Form(
-      key: _shadowForm,
-      child: ListView(
-        key: const ValueKey(_Step.shadow),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        children: [
-          const OnboardingHeader(
-            title: 'Tell us about your rental',
-            subtitle:
-                'We will use this to track your payments and build your rental history.',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _errorBlock(),
-          AppTextField(
-            label: 'Property Name',
-            controller: _nickname,
-            hint: 'e.g. My Bedsitter in Kasarani',
-            textCapitalization: TextCapitalization.sentences,
-            validator: Validators.required('Please enter a property name.'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppTextField(
-            label: 'Address (optional)',
-            controller: _address,
-            hint: 'e.g. Kasarani, Nairobi',
-            textCapitalization: TextCapitalization.words,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppTextField(
-            label: 'Monthly Rent',
-            controller: _rent,
-            hint: 'e.g. 7000',
-            prefixText: 'KES ',
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-            ],
-            validator: Validators.amount,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppDropdownField<int>(
-            label: 'Rent Due Day',
-            value: _dueDay,
-            options: [
-              for (var d = 1; d <= 28; d++)
-                DropdownOption(d, 'Day $d of every month'),
-            ],
-            onChanged: (v) => setState(() => _dueDay = v ?? 1),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const Text('How do you pay rent?', style: AppTypography.label),
-          const SizedBox(height: AppSpacing.xs),
-          SegmentedButton<PaymentDestinationType>(
-            showSelectedIcon: false,
-            segments: [
-              for (final type in PaymentDestinationType.values)
-                ButtonSegment(value: type, label: Text(type.label)),
-            ],
-            selected: {_destinationType},
-            onSelectionChanged: (s) =>
-                setState(() => _destinationType = s.first),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppTextField(
-            label: numberLabel,
-            controller: _destinationNumber,
-            hint: _destinationType == PaymentDestinationType.paybill
-                ? 'e.g. 522522'
-                : 'e.g. 0123456',
-            keyboardType: TextInputType.number,
-            validator: Validators.required('Please enter the payment number.'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppTextField(
-            label: 'Reference (optional)',
-            controller: _reference,
-            hint: 'e.g. your phone number',
-            textInputAction: TextInputAction.done,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          PrimaryButton(
-            label: 'Save My Rental',
-            isLoading: _loading,
-            onPressed: _saveShadow,
-          ),
         ],
       ),
     );
