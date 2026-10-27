@@ -36,10 +36,7 @@ class CopyRow extends StatelessWidget {
               children: [
                 Text(label, style: AppTypography.caption),
                 const SizedBox(height: AppSpacing.xxs),
-                SelectableText(
-                  value,
-                  style: valueStyle ?? AppTypography.subheading,
-                ),
+                Text(value, style: valueStyle ?? AppTypography.subheading),
               ],
             ),
           ),

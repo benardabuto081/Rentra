@@ -13,6 +13,7 @@ import '../../../core/widgets/buttons.dart';
 import '../../../core/widgets/display.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/sheets.dart';
+import '../../../core/widgets/states.dart';
 import '../../payments/models/payment.dart';
 import '../../payments/providers/payment_providers.dart';
 import '../models/tenancy.dart';
@@ -37,11 +38,12 @@ class TenancyDetailScreen extends ConsumerWidget {
           onRefresh: () async {
             ref.invalidate(tenantPaymentsProvider(tenancyId));
             ref.invalidate(tenancyProvider(tenancyId));
-      await ref.read(tenancyProvider(tenancyId).future);
+            await ref.read(tenancyProvider(tenancyId).future);
           },
           child: _Body(
             tenancy: t,
-            unitLabel: index?.unitLabel(t.unitId, buildingId: t.buildingId) ?? 'Unit',
+            unitLabel:
+                index?.unitLabel(t.unitId, buildingId: t.buildingId) ?? 'Unit',
           ),
         ),
       ),
@@ -116,74 +118,117 @@ class _Body extends ConsumerWidget {
     final t = tenancy;
     final live = t.status != TenancyStatus.vacated;
     final payments = ref.watch(tenantPaymentsProvider(t.id));
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      children: [
-        AppCard(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final history = payments.value ?? const <Payment>[];
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.sm,
+            AppSpacing.sm,
+            AppSpacing.sm,
+            0,
+          ),
+          sliver: SliverList.list(
             children: [
-              Row(
-                children: [
-                  Expanded(child: Text(unitLabel, style: AppTypography.subheading)),
-                  chipFor(tenancyStatus(t.status)),
-                ],
+              AppCard(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                            child: Text(unitLabel,
+                                style: AppTypography.subheading)),
+                        chipFor(tenancyStatus(t.status)),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    DetailRow(
+                        label: 'Monthly rent',
+                        value: formatMoney(t.rentAmount)),
+                    if (t.storageAmount > 0)
+                      DetailRow(
+                          label: 'Storage charge',
+                          value: formatMoney(t.storageAmount)),
+                    if (t.depositAmount > 0)
+                      DetailRow(
+                          label: 'Deposit',
+                          value: formatMoney(t.depositAmount)),
+                    DetailRow(
+                        label: 'Moved in', value: formatDate(t.moveInDate)),
+                    if (t.noticeDate != null)
+                      DetailRow(
+                          label: 'Notice given',
+                          value: formatDate(t.noticeDate!)),
+                    if (t.moveOutDate != null)
+                      DetailRow(
+                          label: 'Moved out',
+                          value: formatDate(t.moveOutDate!)),
+                  ],
+                ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              DetailRow(label: 'Monthly rent', value: formatMoney(t.rentAmount)),
-              if (t.storageAmount > 0)
-                DetailRow(label: 'Storage charge', value: formatMoney(t.storageAmount)),
-              if (t.depositAmount > 0)
-                DetailRow(label: 'Deposit', value: formatMoney(t.depositAmount)),
-              DetailRow(label: 'Moved in', value: formatDate(t.moveInDate)),
-              if (t.noticeDate != null)
-                DetailRow(label: 'Notice given', value: formatDate(t.noticeDate!)),
-              if (t.moveOutDate != null)
-                DetailRow(label: 'Moved out', value: formatDate(t.moveOutDate!)),
+              if (live) ...[
+                const SizedBox(height: AppSpacing.md),
+                PrimaryButton(
+                  label: 'Record a payment',
+                  icon: Icons.add,
+                  onPressed: () =>
+                      context.push(AppRoutes.recordPayment(tenancyId: t.id)),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                SecondaryButton(
+                    label: 'Update rent',
+                    onPressed: () => _updateRent(context, ref)),
+                if (t.status == TenancyStatus.active) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  SecondaryButton(
+                      label: 'Record notice',
+                      onPressed: () => _giveNotice(context, ref)),
+                ],
+                const SizedBox(height: AppSpacing.xs),
+                DestructiveButton(
+                    label: 'Move out', onPressed: () => _moveOut(context, ref)),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              const SectionHeader(title: 'Payment History'),
+              if (!payments.hasValue)
+                AsyncBody<List<Payment>>(
+                  value: payments,
+                  onRetry: () => ref.invalidate(tenantPaymentsProvider(t.id)),
+                  loading: const SkeletonBox(
+                    height: AppSpacing.xxxl + AppSpacing.xs,
+                    radius: AppRadii.card,
+                  ),
+                  data: (_) => const SizedBox.shrink(),
+                )
+              else if (history.isEmpty)
+                const Text(
+                  'No payments recorded for this tenant yet. Record one when rent comes in, so you always know where things stand.',
+                  style: AppTypography.bodySecondary,
+                ),
             ],
           ),
         ),
-        if (live) ...[
-          const SizedBox(height: AppSpacing.md),
-          PrimaryButton(
-            label: 'Record a payment',
-            icon: Icons.add,
-            onPressed: () => context.push(AppRoutes.recordPayment(tenancyId: t.id)),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          SecondaryButton(label: 'Update rent', onPressed: () => _updateRent(context, ref)),
-          if (t.status == TenancyStatus.active) ...[
-            const SizedBox(height: AppSpacing.xs),
-            SecondaryButton(label: 'Record notice', onPressed: () => _giveNotice(context, ref)),
-          ],
-          const SizedBox(height: AppSpacing.xs),
-          DestructiveButton(label: 'Move out', onPressed: () => _moveOut(context, ref)),
-        ],
-        const SizedBox(height: AppSpacing.md),
-        const SectionHeader(title: 'Payment History'),
-        AsyncBody<List<Payment>>(
-          value: payments,
-          onRetry: () => ref.invalidate(tenantPaymentsProvider(t.id)),
-          loading: const SizedBox(height: AppSpacing.xxxl),
-          data: (list) => list.isEmpty
-              ? const Text(
-                  'No payments recorded for this tenant yet. Record one when rent comes in, so you always know where things stand.',
-                  style: AppTypography.bodySecondary,
-                )
-              : Column(
-                  children: [
-                    for (final p in list) ...[
-                      ListCard(
-                        title: '${p.type.label} · ${formatShortMonthYear(p.month, p.year)}',
-                        subtitle: '${formatMoney(p.amountPaid)} of ${formatMoney(p.amount)}',
-                        trailing: chipFor(paymentStatus(p.status)),
-                        onTap: () => context.go(AppRoutes.payment(p.id)),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                    ],
-                  ],
+        SliverPadding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          sliver: SliverList.builder(
+            itemCount: history.length,
+            itemBuilder: (context, i) {
+              final p = history[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: ListCard(
+                  title:
+                      '${p.type.label} · ${formatShortMonthYear(p.month, p.year)}',
+                  subtitle:
+                      '${formatMoney(p.amountPaid)} of ${formatMoney(p.amount)}',
+                  trailing: chipFor(paymentStatus(p.status)),
+                  onTap: () => context.go(AppRoutes.payment(p.id)),
                 ),
+              );
+            },
+          ),
         ),
       ],
     );

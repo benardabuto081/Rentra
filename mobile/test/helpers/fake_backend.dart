@@ -29,7 +29,30 @@ class FakeBackend implements HttpClientAdapter {
   final List<Map<String, dynamic>> payments = [];
   final List<Map<String, dynamic>> issues = [];
   final List<Map<String, dynamic>> passkeys = [];
+  final List<Map<String, dynamic>> shadowRentals = [];
   int _id = 1;
+
+  Map<String, dynamic> addShadowRental({
+    String nickname = 'Bedsitter in Kasarani',
+    String billingCycle = 'monthly',
+  }) {
+    final s = <String, dynamic>{
+      'id': _next('s'),
+      'tenantUserId': 'u1',
+      'propertyNickname': nickname,
+      'address': 'Kasarani, Nairobi',
+      'rentAmount': money(7000),
+      'billingCycle': billingCycle,
+      'dueDayOfMonth': 5,
+      'paymentDestinationType': 'paybill',
+      'paymentDestinationNumber': '522522',
+      'paymentReferenceName': '0712345678',
+      'status': 'unverified',
+      'createdAt': '2026-10-01T08:00:00.000Z',
+    };
+    shadowRentals.add(s);
+    return s;
+  }
 
   String _next(String prefix) => '$prefix${_id++}';
 
@@ -182,6 +205,18 @@ class FakeBackend implements HttpClientAdapter {
       };
       passkeys.add(p);
       return (201, p);
+    }
+    if (path.startsWith('/shadow-relationships')) {
+      final id = seg(1);
+      if (id.isEmpty) return (200, shadowRentals.reversed.toList());
+      final s = _find(shadowRentals, id);
+      if (s == null) return _notFound('Rental relationship');
+      if (seg(2) == 'end') {
+        s['status'] = 'ended';
+      } else if (method == 'PATCH') {
+        s.addAll(body);
+      }
+      return (200, s);
     }
     if (!path.startsWith(org)) return _notFound('Route');
 

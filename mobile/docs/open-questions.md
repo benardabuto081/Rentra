@@ -165,3 +165,8 @@ There was no answer, so I took the no-new-dependency option. `AppConfig.appVersi
 - **Settling a payment:** "Update amount paid" asks for the total paid so far and offers the full amount by default. The app never subtracts amounts; the server works out the status.
 - **Several units:** names are a prefix plus a running number (default "A" from 1). Units are created one after another. If one fails, the app reports how many were added and offers to add the rest.
 - **Sheets and snackbars:** opening a bottom sheet now hides any success message still showing, so it cannot cover the sheet's button.
+
+## Changes made in Phase 4
+- **Copyable values:** paybill numbers, references and passkeys are now plain text instead of selectable text. The selectable version made a 30 px long-press target, below 48 dp. The copy button next to each value does the job.
+- **Disabled buttons:** the brief's disabled colour `#9AA5AF` is now used for disabled outlined and text buttons. It is 2.5:1, which WCAG exempts for disabled controls.
+- **Month totals:** if the month's totals fail to load, a calm note says so while the payments list still shows. Before, the totals simply disappeared.

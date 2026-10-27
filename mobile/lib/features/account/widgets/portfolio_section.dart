@@ -8,6 +8,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/buttons.dart';
 import '../../../core/widgets/display.dart';
+import '../../../core/widgets/states.dart';
 import '../../landlord/models/organization.dart';
 import '../../landlord/providers/landlord_providers.dart';
 
@@ -23,7 +24,7 @@ class PortfolioSection extends ConsumerWidget {
         AsyncBody<Organization>(
           value: ref.watch(organizationProvider),
           onRetry: () => ref.invalidate(organizationProvider),
-          loading: const SizedBox(height: AppSpacing.xxxl),
+          loading: const SkeletonBox(height: AppSpacing.xxxl * 3, radius: AppRadii.card),
           data: (org) {
             String show(String? v) =>
                 v == null || v.trim().isEmpty ? 'Not added yet' : v.trim();

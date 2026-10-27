@@ -51,32 +51,41 @@ class PropertiesScreen extends ConsumerWidget {
               )
             : RefreshIndicator(
                 onRefresh: refresh,
-                child: ListView(
+                child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.sm,
                     AppSpacing.sm,
                     AppSpacing.sm,
                     AppSpacing.xxxl + AppSpacing.md,
                   ),
-                  children: [
-                    ListCard(
-                      icon: Icons.people_outline,
-                      title: 'Tenants',
-                      subtitle: tenancies == null
-                          ? 'Everyone currently renting from you'
-                          : plural(tenancies.length, 'current tenant'),
-                      onTap: () => context.go(AppRoutes.landlordTenants),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    const SectionHeader(title: 'Buildings'),
-                    for (final building in list) ...[
-                      _BuildingCard(
+                  itemCount: list.length + 1,
+                  itemBuilder: (context, i) {
+                    if (i == 0) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ListCard(
+                            icon: Icons.people_outline,
+                            title: 'Tenants',
+                            subtitle: tenancies == null
+                                ? 'Everyone currently renting from you'
+                                : plural(tenancies.length, 'current tenant'),
+                            onTap: () => context.go(AppRoutes.landlordTenants),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          const SectionHeader(title: 'Buildings'),
+                        ],
+                      );
+                    }
+                    final building = list[i - 1];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: _BuildingCard(
                         building: building,
                         summary: _summaryFor(summaries, building.id),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                    ],
-                  ],
+                    );
+                  },
                 ),
               ),
       ),

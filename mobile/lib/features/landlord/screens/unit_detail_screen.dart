@@ -13,6 +13,7 @@ import '../../../core/widgets/async_body.dart';
 import '../../../core/widgets/buttons.dart';
 import '../../../core/widgets/display.dart';
 import '../../../core/widgets/feedback.dart';
+import '../../../core/widgets/states.dart';
 import '../models/unit.dart';
 import '../providers/landlord_providers.dart';
 import '../widgets/status_labels.dart';
@@ -141,7 +142,7 @@ class _TenantSection extends ConsumerWidget {
         AsyncBody(
           value: tenancy,
           onRetry: () => ref.invalidate(tenancyProvider(tenancyId)),
-          loading: const SizedBox(height: AppSpacing.xxxl),
+          loading: const SkeletonBox(height: AppSpacing.xxxl + AppSpacing.xs, radius: AppRadii.card),
           data: (t) => ListCard(
             icon: Icons.person_outline,
             title: 'Tenant since ${formatDate(t.moveInDate)}',

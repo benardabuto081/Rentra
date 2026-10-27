@@ -75,6 +75,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
+          disabledForegroundColor: AppColors.disabled,
           minimumSize: buttonMinSize,
           padding: buttonPadding,
           shape: buttonShape,
@@ -85,6 +86,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
+          disabledForegroundColor: AppColors.disabled,
           minimumSize: buttonMinSize,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           shape: buttonShape,

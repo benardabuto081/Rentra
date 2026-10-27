@@ -132,7 +132,7 @@ class _MonthTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final payments = ref.watch(monthPaymentsProvider(month));
-    final stats = ref.watch(monthStatsProvider(month)).value;
+    final stats = ref.watch(monthStatsProvider(month));
     final index = ref.watch(portfolioIndexProvider).value;
     Future<void> refresh() async {
       ref.invalidate(monthStatsProvider(month));
@@ -140,45 +140,62 @@ class _MonthTab extends ConsumerWidget {
       await ref.read(monthPaymentsProvider(month).future);
     }
 
+    final statsCard = switch (stats) {
+      AsyncData(value: final s) => AppCard(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            children: [
+              DetailRow(label: 'Expected', value: formatMoney(s.expected)),
+              DetailRow(label: 'Collected', value: formatMoney(s.collected)),
+              DetailRow(label: 'Still to collect', value: formatMoney(s.outstanding)),
+              DetailRow(label: 'Payments recorded', value: '${s.count}'),
+            ],
+          ),
+        ),
+      AsyncError() => const InlineMessage(
+          message: "We couldn't load this month's totals. Pull down to try again.",
+          tone: InlineTone.info,
+        ),
+      _ => const SkeletonBox(height: AppSpacing.xxxl * 2, radius: AppRadii.card),
+    };
+
     return AsyncBody<List<Payment>>(
       value: payments,
       onRetry: refresh,
       data: (list) => RefreshIndicator(
         onRefresh: refresh,
-        child: ListView(
+        child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.sm,
             0,
             AppSpacing.sm,
             AppSpacing.xxxl + AppSpacing.md,
           ),
-          children: [
-            if (stats != null)
-              AppCard(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  children: [
-                    DetailRow(label: 'Expected', value: formatMoney(stats.expected)),
-                    DetailRow(label: 'Collected', value: formatMoney(stats.collected)),
-                    DetailRow(label: 'Still to collect', value: formatMoney(stats.outstanding)),
-                    DetailRow(label: 'Payments recorded', value: '${stats.count}'),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.md),
-            if (list.isEmpty)
-              const EmptyState(
+          itemCount: list.isEmpty ? 2 : list.length + 1,
+          itemBuilder: (context, i) {
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: statsCard,
+              );
+            }
+            if (list.isEmpty) {
+              return const EmptyState(
                 icon: Icons.payments_outlined,
                 title: 'No payments for this month',
                 message:
                     'Record rent as it comes in. Your totals and outstanding balances update straight away.',
-              )
-            else
-              for (final p in list) ...[
-                PaymentCard(payment: p, unitLabel: index?.unitLabel(p.unitId, buildingId: p.buildingId)),
-                const SizedBox(height: AppSpacing.xs),
-              ],
-          ],
+              );
+            }
+            final p = list[i - 1];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: PaymentCard(
+                payment: p,
+                unitLabel: index?.unitLabel(p.unitId, buildingId: p.buildingId),
+              ),
+            );
+          },
         ),
       ),
     );

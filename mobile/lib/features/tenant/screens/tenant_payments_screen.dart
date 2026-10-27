@@ -6,6 +6,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/dates.dart';
+import '../../../core/utils/money.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/copy_row.dart';
 import '../../../core/widgets/display.dart';
@@ -102,13 +103,7 @@ class _Details extends StatelessWidget {
               if (reference != null)
                 CopyRow(label: 'Reference', value: reference),
               const SizedBox(height: AppSpacing.xs),
-              Row(
-                children: [
-                  const Text('Amount', style: AppTypography.bodySecondary),
-                  const Spacer(),
-                  MoneyText(rental.rentAmount),
-                ],
-              ),
+              DetailRow(label: 'Amount', value: formatMoney(rental.rentAmount)),
             ],
           ),
         ),
